@@ -4,6 +4,13 @@
   "projectType": "application",
   "sourceRoot": "apps/ai-service/ai_service",
   "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": ".env\\Scripts\\python -m uvicorn main:app --reload --port 8000",
+        "cwd": "apps/ai-service"
+      }
+    },
     "docs": {
       "executor": "@nxlv/python:run-commands",
       "options": {

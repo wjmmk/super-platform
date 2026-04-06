@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "start:angular": "npx nx serve web-angular"
+    "start:angular": "npx nx serve web-angular",
+    "start:python": "npx nx serve ai-service"
   },
   "private": true,
   "dependencies": {
