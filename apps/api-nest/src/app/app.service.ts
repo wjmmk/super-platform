@@ -1,6 +1,4 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { firstValueFrom } from 'rxjs';
-
 @Injectable()
 export class AppService {
 
