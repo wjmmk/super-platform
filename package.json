@@ -4,7 +4,8 @@
   "license": "MIT",
   "scripts": {
     "start:angular": "npx nx serve web-angular",
-    "start:python": "npx nx serve ai-service"
+    "start:python": "npx nx serve ai-service",
+    "start:nest": "npx nx serve api-nest"
   },
   "private": true,
   "dependencies": {
