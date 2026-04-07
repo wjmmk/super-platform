@@ -1,2 +1,22 @@
 <app-nx-welcome></app-nx-welcome>
 <router-outlet></router-outlet>
+
+<div style="padding: 20px; max-width: 500px;">
+  <h2>AI Risk Analyzer</h2>
+
+  <label for="invoiceId">Invoice ID:</label>
+  <input id="invoiceId" type="number" [(ngModel)]="invoiceId" />
+
+  <br /><br />
+
+  <button (click)="analyze()" [disabled]="loading">
+    {{ loading ? 'Analyzing...' : 'Analyze' }}
+  </button>
+
+  @if (result) {
+  <div style="margin-top: 20px;">
+    <h3>Result:</h3>
+    <pre>{{ result | json }}</pre>
+  </div>
+  }
+</div>
