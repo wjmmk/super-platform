@@ -11,7 +11,7 @@ export class AppController {
   }
 
   @Post('analyze')
-  analyze(@Body() data: any) {
+  analyze(@Body() data: unknown) {
     return this.appService.analyze(data);
   }
 }

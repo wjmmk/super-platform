@@ -1,13 +1,14 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "outDir": "../../dist/out-tsc",
-    "module": "commonjs",
+    "module": "nodenext",
     "types": ["node"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "target": "es2021",
-    "moduleResolution": "node"
+    "moduleResolution": "node16"
   },
   "include": ["src/**/*.ts"]
 }
