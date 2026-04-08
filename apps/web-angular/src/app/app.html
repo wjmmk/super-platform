@@ -1,22 +1,68 @@
-<app-nx-welcome></app-nx-welcome>
-<router-outlet></router-outlet>
+<div class="app-container">
+  <header class="app-header">
+    <div class="header-content">
+      <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="logo-icon"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 22 4-10 4 10"/><path d="M12 2v2"/></svg>
+        <span>Super Platform AI</span>
+      </div>
+      <nav class="nav">
+        <a href="#" class="nav-link active">Risk Analyzer</a>
+        <a href="#" class="nav-link">History</a>
+        <a href="#" class="nav-link">Settings</a>
+      </nav>
+    </div>
+  </header>
 
-<div style="padding: 20px; max-width: 500px;">
-  <h2>AI Risk Analyzer</h2>
+  <main class="main-content">
+    <div class="hero">
+      <h1>AI Risk Analysis</h1>
+      <p>Analyze your invoices and detect potential risks using our advanced AI algorithms.</p>
+    </div>
 
-  <label for="invoiceId">Invoice ID:</label>
-  <input id="invoiceId" type="number" [(ngModel)]="invoiceId" />
+    <div class="analyzer-card">
+      <div class="card-body">
+        <div class="form-group">
+          <label for="invoiceId">Invoice ID</label>
+          <div class="input-wrapper">
+            <input
+              id="invoiceId"
+              type="number"
+              [(ngModel)]="invoiceId"
+              placeholder="Enter invoice ID (e.g., 123)"
+              class="form-input"
+            />
+          </div>
+        </div>
 
-  <br /><br />
+        <button (click)="analyze()" [disabled]="loading" class="btn btn-primary">
+          @if (loading) {
+            <span class="spinner"></span>
+            Analyzing...
+          } @else {
+            Run Analysis
+          }
+        </button>
+      </div>
 
-  <button (click)="analyze()" [disabled]="loading">
-    {{ loading ? 'Analyzing...' : 'Analyze' }}
-  </button>
+      @if (result) {
+        <div class="card-footer result-section">
+          <div class="result-header">
+            <h3>Analysis Result</h3>
+            <span class="badge" [class.success]="!result.error" [class.danger]="result.error">
+              {{ result.error ? 'Alert' : 'Processed' }}
+            </span>
+          </div>
+          <div class="result-content">
+            <pre>{{ result | json }}</pre>
+          </div>
+        </div>
+      }
+    </div>
+  </main>
 
-  @if (result) {
-  <div style="margin-top: 20px;">
-    <h3>Result:</h3>
-    <pre>{{ result | json }}</pre>
-  </div>
-  }
+  <footer class="app-footer">
+    <p>&copy; 2026 Super Platform. Powered by AI Service.</p>
+  </footer>
 </div>
+
+<router-outlet></router-outlet>

@@ -1,12 +1,11 @@
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { NxWelcome } from './nx-welcome';
-import { AiService } from './ai.service';
+import { AiService, AnalysisResult } from './ai.service';
 import { JsonPipe } from '@angular/common';
 
 @Component({
-  imports: [NxWelcome, RouterModule, FormsModule, JsonPipe],
+  imports: [RouterModule, FormsModule, JsonPipe],
   selector: 'app-root',
   templateUrl: './app.html',
   styleUrl: './app.css',
@@ -14,7 +13,7 @@ import { JsonPipe } from '@angular/common';
 export class App {
   protected title = 'web-angular';
   invoiceId = 123;
-  result: any = null;
+  result: AnalysisResult | null = null;
   loading = false;
 
   // eslint-disable-next-line @angular-eslint/prefer-inject
@@ -24,11 +23,11 @@ export class App {
     this.loading = true;
 
     this.aiService.analyze({ invoice: this.invoiceId }).subscribe({
-      next: (res) => {
+      next: (res: AnalysisResult) => {
         this.result = res;
         this.loading = false;
       },
-      error: (err) => {
+      error: (err: unknown) => {
         console.error('Error:', err);
         this.loading = false;
       }
