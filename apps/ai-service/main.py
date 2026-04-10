@@ -10,6 +10,9 @@ class BlogPost(BaseModel):
     title: str
     content: str
 
+class AnalysisRequest(BaseModel):
+    invoice: str | int
+
 class Item(BaseModel):
     name: str
     description: str = None
@@ -55,12 +58,13 @@ def read_item(id: int, q: str | None = None):
     return {"id": post["id"], "title": post["title"], "content": post["content"]}
 
 @app.post("/analyze")
-def analyze(data: dict):
+def analyze(data: AnalysisRequest):
     # Simulación IA
-    score = len(str(data)) * 0.1
+    score = len(str(data.invoice)) * 0.1
     return {
-        "risk_score": score,
-        "decision": "approve" if score < 5 else "reject"
+        "risk_score": round(score, 2), # Redondeamos para que se vea limpio en Angular
+        "decision": "approve" if score < 5 else "reject",
+        "invoice_processed": data.invoice
     }
 
 @app.put("/items/{item_id}", response_model=BlogPost)
