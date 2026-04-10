@@ -1,8 +1,21 @@
 # apps/ai-service/main.py
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 app = FastAPI(title="AI Service", version="1.0")
+
+class BlogPost(BaseModel):
+    id: int
+    title: str
+    content: str
+
+class Item(BaseModel):
+    name: str
+    description: str = None
+    price: float
+    tax: float = None
+    is_offer: bool | None = None
 
 BLOG_POST = [
     {
@@ -34,6 +47,13 @@ def get_posts():
 def health():
     return {"status": "ok"}
 
+@app.get("/items/{id}", response_model=BlogPost)
+def read_item(id: int, q: str | None = None):
+    post = next((post for post in BLOG_POST if post["id"] == id), None)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return {"id": post["id"], "title": post["title"], "content": post["content"]}
+
 @app.post("/analyze")
 def analyze(data: dict):
     # Simulación IA
@@ -42,3 +62,13 @@ def analyze(data: dict):
         "risk_score": score,
         "decision": "approve" if score < 5 else "reject"
     }
+
+@app.put("/items/{item_id}", response_model=BlogPost)
+def update_item(item_id: int, item: BlogPost):
+    for index, post in enumerate(BLOG_POST):
+        if post["id"] == item_id:
+            # 2. Reemplazamos el contenido en esa posición
+            # .model_dump() convierte el objeto de Pydantic en un diccionario de Python
+            BLOG_POST[index] = item.model_dump()
+            return BLOG_POST[index]
+    raise HTTPException(status_code=404, detail="Post not found")
