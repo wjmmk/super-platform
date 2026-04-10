@@ -20,6 +20,7 @@ export class AiService {
   constructor(private http: HttpClient) {}
 
   analyze(data: AnalysisRequest) {
+    console.log('Enviando datos al backend:', data);
     return this.http.post<AnalysisResult>('http://localhost:3000/api/analyze', data);
   }
 }
