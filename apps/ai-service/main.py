@@ -1,6 +1,8 @@
 # apps/ai-service/main.py
 
-from fastapi import FastAPI, HTTPException, Query
+from operator import index
+
+from fastapi import FastAPI, HTTPException, Query, Body
 from pydantic import BaseModel
 
 app = FastAPI(title="AI Service", version="1.0")
@@ -73,6 +75,48 @@ def read_item(id: int | None = None):
         raise HTTPException(status_code=404, detail="Post not found")
     return {"id": post["id"], "title": post["title"], "content": post["content"]}
 
+# Post Methods for FastAPI.
+
+@app.post("/posts")
+def create_post(post: dict = Body(...)):
+    if "title" not in post or "content" not in post:
+        raise HTTPException(status_code=400, detail="Title and content are required")
+    
+    if not isinstance(post["title"], str) or not isinstance(post["content"], str):
+        raise HTTPException(status_code=400, detail="Title and content must be strings")
+    
+    new_id = max(post["id"] for post in BLOG_POST) + 1
+    new_post = {"id": new_id, **post}
+    BLOG_POST.append(new_post)
+    return {"message": "Post created successfully", "post": new_post}
+
+
+@app.put("/posts/{id}", response_model=BlogPost)
+def update_item(id: int, item: dict = Body(...)):
+    for post in BLOG_POST:
+        if post["id"] == id:
+            if "title" in item:
+                if not isinstance(item["title"], str):
+                    raise HTTPException(status_code=400, detail="Title must be a string")
+                if "content" in item:
+                    if not isinstance(item["content"], str):
+                        raise HTTPException(status_code=400, detail="Content must be a string")
+                    post["content"] = item["content"]
+                post["title"] = item["title"]
+            return post
+    raise HTTPException(status_code=404, detail="Post not found")
+
+
+@app.delete("/posts/{id}", status_code=204)
+def delete_item(id: int):
+    for index, post in enumerate(BLOG_POST):
+        if post["id"] == id:
+            BLOG_POST.pop(index)
+            return {"message": "Post deleted successfully"}
+    raise HTTPException(status_code=404, detail="Post not found")
+
+
+# Simulación de análisis de facturas con IA con NestJS y Angular
 @app.post("/analyze")
 def analyze(data: AnalysisRequest):
     # Simulación IA
@@ -83,12 +127,3 @@ def analyze(data: AnalysisRequest):
         "invoice_processed": data.invoice
     }
 
-@app.put("/items/{item_id}", response_model=BlogPost)
-def update_item(item_id: int, item: BlogPost):
-    for index, post in enumerate(BLOG_POST):
-        if post["id"] == item_id:
-            # 2. Reemplazamos el contenido en esa posición
-            # .model_dump() convierte el objeto de Pydantic en un diccionario de Python
-            BLOG_POST[index] = item.model_dump()
-            return BLOG_POST[index]
-    raise HTTPException(status_code=404, detail="Post not found")
