@@ -1,6 +1,6 @@
 # apps/ai-service/main.py
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
 app = FastAPI(title="AI Service", version="1.0")
@@ -46,12 +46,28 @@ def home():
 def get_posts():
     return {"posts": BLOG_POST}
 
+@app.get("/params")
+def get_posts_Query_params(query: str | None = Query(default=None, description="Query string to search posts"), limit: int = 5):
+    posts = BLOG_POST
+    if query:
+        posts = [post for post in posts if query.lower() in post["title"].lower()]
+    return {"posts": posts[:limit]}
+
+@app.get("/params/{id}")
+def get_post_param(id: int | None = None, include_content: bool | None = Query(default=True, description="Query string to see posts")):
+    for post in BLOG_POST:
+        if post["id"] == id and (include_content):
+            return {"post": post}
+        else:
+            return {"post": {"id": post["id"], "title": post["title"]}}
+    return {"error": "Post not found"}
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
 @app.get("/items/{id}", response_model=BlogPost)
-def read_item(id: int, q: str | None = None):
+def read_item(id: int | None = None):
     post = next((post for post in BLOG_POST if post["id"] == id), None)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
