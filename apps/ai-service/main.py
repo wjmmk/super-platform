@@ -18,7 +18,7 @@ class Item(BaseModel):
     tax: float = None
     is_offer: bool | None = None
 
-BLOG_POST: BlogPost = [
+BLOG_POST: BlogPost[dict] = [
     {
         "id": 123,
         "title": "How to Use AI in Your Business",
