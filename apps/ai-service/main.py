@@ -1,7 +1,3 @@
-# apps/ai-service/main.py
-
-from operator import index
-
 from fastapi import FastAPI, HTTPException, Query, Body
 from pydantic import BaseModel
 
@@ -22,7 +18,7 @@ class Item(BaseModel):
     tax: float = None
     is_offer: bool | None = None
 
-BLOG_POST = [
+BLOG_POST: BlogPost = [
     {
         "id": 123,
         "title": "How to Use AI in Your Business",
@@ -75,8 +71,8 @@ def read_item(id: int | None = None):
         raise HTTPException(status_code=404, detail="Post not found")
     return {"id": post["id"], "title": post["title"], "content": post["content"]}
 
-# Post Methods for FastAPI.
 
+# Post Methods for FastAPI.
 @app.post("/posts")
 def create_post(post: dict = Body(...)):
     if "title" not in post or "content" not in post:
