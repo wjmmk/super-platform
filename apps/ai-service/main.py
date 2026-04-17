@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 app = FastAPI(title="AI Service", version="1.0")
@@ -36,13 +37,17 @@ BLOG_POST: BlogPost[dict] = [
     }
 ]
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def home():
     return {"message": "Welcome to the AI Service!"}
 
 @app.get("/posts")
 def get_posts():
     return {"posts": BLOG_POST}
+
+@app.get("/posts/html", response_class=HTMLResponse, include_in_schema=False)
+def get_posts_html():
+    return f'<h1>{BLOG_POST[0]['title']}</h1>'
 
 @app.get("/params")
 def get_posts_Query_params(query: str | None = Query(default=None, description="Query string to search posts"), limit: int = 5):
@@ -60,7 +65,7 @@ def get_post_param(id: int | None = None, include_content: bool | None = Query(d
             return {"post": {"id": post["id"], "title": post["title"]}}
     return {"error": "Post not found"}
 
-@app.get("/health")
+@app.get("/health", include_in_schema=False)
 def health():
     return {"status": "ok"}
 
@@ -113,7 +118,7 @@ def delete_item(id: int):
 
 
 # Simulación de análisis de facturas con IA con NestJS y Angular
-@app.post("/analyze")
+@app.post("/analyze", include_in_schema=False)
 def analyze(data: AnalysisRequest):
     # Simulación IA
     score = len(str(data.invoice)) * 0.1
