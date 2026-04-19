@@ -1,8 +1,12 @@
-from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi import FastAPI, HTTPException, Query, Body, Request
 from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 app = FastAPI(title="AI Service", version="1.0")
+
+# Permite usar plantillas HTML desde FastAPI.
+templates = Jinja2Templates(directory="templates")
 
 class BlogPost(BaseModel):
     id: int
@@ -45,6 +49,12 @@ def home():
 def get_posts():
     return {"posts": BLOG_POST}
 
+#Utilizando Plantillas para contruir HTML.
+@app.get("/posts/template")
+def get_home(request: Request):
+    return templates.TemplateResponse(request, "home.html", { "posts": BLOG_POST, "title": "Home" })
+
+
 @app.get("/posts/html", response_class=HTMLResponse, include_in_schema=False)
 def get_posts_html():
     return f'<h1>{BLOG_POST[0]['title']}</h1>'
@@ -55,6 +65,7 @@ def get_posts_Query_params(query: str | None = Query(default=None, description="
     if query:
         posts = [post for post in posts if query.lower() in post["title"].lower()]
     return {"posts": posts[:limit]}
+
 
 @app.get("/params/{id}")
 def get_post_param(id: int | None = None, include_content: bool | None = Query(default=True, description="Query string to see posts")):
@@ -68,6 +79,7 @@ def get_post_param(id: int | None = None, include_content: bool | None = Query(d
 @app.get("/health", include_in_schema=False)
 def health():
     return {"status": "ok"}
+
 
 @app.get("/items/{id}", response_model=BlogPost)
 def read_item(id: int | None = None):
