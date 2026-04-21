@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, Body, Request
+from fastapi import FastAPI, HTTPException, status, Query, Body, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -85,7 +85,7 @@ def health():
 def read_item(id: int | None = None):
     post = next((post for post in BLOG_POST if post["id"] == id), None)
     if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
     return {"id": post["id"], "title": post["title"], "content": post["content"]}
 
 
@@ -93,10 +93,10 @@ def read_item(id: int | None = None):
 @app.post("/posts")
 def create_post(post: dict = Body(...)):
     if "title" not in post or "content" not in post:
-        raise HTTPException(status_code=400, detail="Title and content are required")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title and content are required")
     
     if not isinstance(post["title"], str) or not isinstance(post["content"], str):
-        raise HTTPException(status_code=400, detail="Title and content must be strings")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title and content must be strings")
     
     new_id = max(post["id"] for post in BLOG_POST) + 1
     new_post = {"id": new_id, **post}
@@ -110,23 +110,23 @@ def update_item(id: int, item: dict = Body(...)):
         if post["id"] == id:
             if "title" in item:
                 if not isinstance(item["title"], str):
-                    raise HTTPException(status_code=400, detail="Title must be a string")
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title must be a string")
                 if "content" in item:
                     if not isinstance(item["content"], str):
-                        raise HTTPException(status_code=400, detail="Content must be a string")
+                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Content must be a string")
                     post["content"] = item["content"]
                 post["title"] = item["title"]
             return post
-    raise HTTPException(status_code=404, detail="Post not found")
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
 
 
-@app.delete("/posts/{id}", status_code=204)
+@app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_item(id: int):
     for index, post in enumerate(BLOG_POST):
         if post["id"] == id:
             BLOG_POST.pop(index)
             return {"message": "Post deleted successfully"}
-    raise HTTPException(status_code=404, detail="Post not found")
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
 
 
 # Simulación de análisis de facturas con IA con NestJS y Angular
