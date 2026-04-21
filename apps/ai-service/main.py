@@ -1,27 +1,12 @@
 from fastapi import FastAPI, HTTPException, status, Query, Body, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from schemas import BlogPost, AnalysisRequest, PostCreate, PostResponse
 
 app = FastAPI(title="AI Service", version="1.0")
 
 # Permite usar plantillas HTML desde FastAPI.
 templates = Jinja2Templates(directory="templates")
-
-class BlogPost(BaseModel):
-    id: int
-    title: str
-    content: str
-
-class AnalysisRequest(BaseModel):
-    invoice: str | int
-
-class Item(BaseModel):
-    name: str
-    description: str = None
-    price: float
-    tax: float = None
-    is_offer: bool | None = None
 
 BLOG_POST: BlogPost[dict] = [
     {
@@ -45,12 +30,16 @@ BLOG_POST: BlogPost[dict] = [
 def home():
     return {"message": "Welcome to the AI Service!"}
 
-@app.get("/posts")
+@app.get("/posts", tags=["Endpoints de HTML"])
 def get_posts():
     return {"posts": BLOG_POST}
 
-#Utilizando Plantillas para contruir HTML.
-@app.get("/posts/template")
+''' 
+  Utilizando Plantillas para construir HTML que se mostrará en el Navegador desde Python 
+  esto es a Manera de Ejemplo Ya que el Verdadero Frontend estará hecho en Angular
+  y recibirá las respuestas desde el Backend realizado en NestJS. 
+'''
+@app.get("/posts/template", tags=["Endpoints de HTML"])
 def get_home(request: Request):
     return templates.TemplateResponse(request, "home.html", { "posts": BLOG_POST, "title": "Home" })
 
@@ -59,7 +48,7 @@ def get_home(request: Request):
 def get_posts_html():
     return f'<h1>{BLOG_POST[0]['title']}</h1>'
 
-@app.get("/params")
+@app.get("/params", tags=["Endpoints de HTML"])
 def get_posts_Query_params(query: str | None = Query(default=None, description="Query string to search posts"), limit: int = 5):
     posts = BLOG_POST
     if query:
@@ -67,7 +56,7 @@ def get_posts_Query_params(query: str | None = Query(default=None, description="
     return {"posts": posts[:limit]}
 
 
-@app.get("/params/{id}")
+@app.get("/params/{id}", tags=["Endpoints de HTML"])
 def get_post_param(id: int | None = None, include_content: bool | None = Query(default=True, description="Query string to see posts")):
     for post in BLOG_POST:
         if post["id"] == id and (include_content):
@@ -81,16 +70,28 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/items/{id}", response_model=BlogPost)
+@app.get("/items/{id}", response_model=BlogPost, tags=["Endpoints de HTML"])
 def read_item(id: int | None = None):
     post = next((post for post in BLOG_POST if post["id"] == id), None)
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
     return {"id": post["id"], "title": post["title"], "content": post["content"]}
 
+''' Hasta aquí llega el codigo HTML de pruebas.'''
 
-# Post Methods for FastAPI.
-@app.post("/posts")
+# Post Methods for FastAPI que responderan a NestJS que al final le Mandará las respuestas al Frontend en Angular.
+@app.get("/api/posts", response_model=list[PostResponse], tags=["APIs ~ Posts"])
+def get_posts():
+    return BLOG_POST
+
+@app.get("/api/posts/{id}", response_model=PostResponse, tags=["APIs ~ Posts"])
+def get_post(id: int):
+    for post in BLOG_POST:
+        if post.get("id") == id:
+            return post
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not Found.")
+
+@app.post("/api/posts", tags=["APIs ~ Posts"])
 def create_post(post: dict = Body(...)):
     if "title" not in post or "content" not in post:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title and content are required")
@@ -104,7 +105,7 @@ def create_post(post: dict = Body(...)):
     return {"message": "Post created successfully", "post": new_post}
 
 
-@app.put("/posts/{id}", response_model=BlogPost)
+@app.put("/api/posts/{id}", response_model=BlogPost, tags=["APIs ~ Posts"])
 def update_item(id: int, item: dict = Body(...)):
     for post in BLOG_POST:
         if post["id"] == id:
@@ -120,7 +121,7 @@ def update_item(id: int, item: dict = Body(...)):
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
 
 
-@app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/api/posts/{id}", status_code=status.HTTP_204_NO_CONTENT, tags=["APIs ~ Posts"])
 def delete_item(id: int):
     for index, post in enumerate(BLOG_POST):
         if post["id"] == id:
@@ -130,7 +131,7 @@ def delete_item(id: int):
 
 
 # Simulación de análisis de facturas con IA con NestJS y Angular
-@app.post("/analyze", include_in_schema=False)
+@app.post("/api/analyze", include_in_schema=False)
 def analyze(data: AnalysisRequest):
     # Simulación IA
     score = len(str(data.invoice)) * 0.1
