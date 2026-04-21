@@ -34,11 +34,11 @@ def home():
 def get_posts():
     return {"posts": BLOG_POST}
 
-''' 
+""" INFO:
   Utilizando Plantillas para construir HTML que se mostrará en el Navegador desde Python 
   esto es a Manera de Ejemplo Ya que el Verdadero Frontend estará hecho en Angular
   y recibirá las respuestas desde el Backend realizado en NestJS. 
-'''
+"""
 @app.get("/posts/template", tags=["Endpoints de HTML"])
 def get_home(request: Request):
     return templates.TemplateResponse(request, "home.html", { "posts": BLOG_POST, "title": "Home" })
@@ -79,6 +79,7 @@ def read_item(id: int | None = None):
 
 ''' Hasta aquí llega el codigo HTML de pruebas.'''
 
+
 # Post Methods for FastAPI que responderan a NestJS que al final le Mandará las respuestas al Frontend en Angular.
 @app.get("/api/posts", response_model=list[PostResponse], tags=["APIs ~ Posts"])
 def get_posts():
@@ -91,7 +92,7 @@ def get_post(id: int):
             return post
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not Found.")
 
-@app.post("/api/posts", tags=["APIs ~ Posts"])
+@app.post("/api/posts", tags=["APIs ~ Posts"], status_code=status.HTTP_201_CREATED)
 def create_post(post: dict = Body(...)):
     if "title" not in post or "content" not in post:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title and content are required")
@@ -105,7 +106,7 @@ def create_post(post: dict = Body(...)):
     return {"message": "Post created successfully", "post": new_post}
 
 
-@app.put("/api/posts/{id}", response_model=BlogPost, tags=["APIs ~ Posts"])
+@app.put("/api/posts/{id}", response_model=BlogPost, tags=["APIs ~ Posts"], status_code=status.HTTP_205_RESET_CONTENT)
 def update_item(id: int, item: dict = Body(...)):
     for post in BLOG_POST:
         if post["id"] == id:
