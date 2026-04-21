@@ -106,7 +106,7 @@ def create_post(post: dict = Body(...)):
     return {"message": "Post created successfully", "post": new_post}
 
 
-@app.put("/api/posts/{id}", response_model=BlogPost, tags=["APIs ~ Posts"], status_code=status.HTTP_205_RESET_CONTENT)
+@app.put("/api/posts/{id}", response_model=BlogPost, tags=["APIs ~ Posts"], status_code=status.HTTP_200_OK)
 def update_item(id: int, item: dict = Body(...)):
     for post in BLOG_POST:
         if post["id"] == id:
