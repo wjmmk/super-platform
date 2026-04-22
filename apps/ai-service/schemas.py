@@ -17,6 +17,7 @@ class Item(BaseModel):
     is_offer: bool | None = None
 
 
+# Schemas of Posts.
 class PostBase(BaseModel):
     title: str = Field(min_length=1, max_length=100)
     content: str = Field(min_length=1)
@@ -24,6 +25,11 @@ class PostBase(BaseModel):
 
 class PostCreate(PostBase):
     user_id: int # Temporary
+
+
+class PostUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=100)
+    content: str | None = Field(default=None, min_length=1)
 
 
 class PostResponse(PostBase):
