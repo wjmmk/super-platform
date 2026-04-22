@@ -103,32 +103,38 @@ def get_post(request: Request, post_id: int, db: Annotated[Session, Depends(get_
 
 # Post Methods for FastAPI que responderan a NestJS que al final le Mandará las respuestas al Frontend en Angular.
 @app.get("/api/posts", response_model=list[PostResponse], tags=["Endpoins ~ Posts"])
-def get_posts():
-    return BLOG_POST
+def get_posts(db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.models.Post))
+    posts = result.scalars().all()
+    return posts
 
 @app.get("/api/posts/{id}", response_model=PostResponse, tags=["Endpoins ~ Posts"])
-def get_post(id: int):
-    for post in BLOG_POST:
-        if post.get("id") == id:
-            return post
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not Found.")
+def get_post(id: int, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.models.Post).where(models.models.Post.id == id))
+    post = result.scalars().first()
+    if post:
+        return post
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
 
-@app.post("/api/posts", tags=["Endpoins ~ Posts"], status_code=status.HTTP_201_CREATED)
-def create_post(post: dict = Body(...)):
-    if "title" not in post or "content" not in post:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title and content are required")
+@app.post("/api/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED, tags=["Endpoins ~ Posts"])
+def create_post(post: PostCreate, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.models.User).where(models.models.User.id == post.user_id))
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not Found.")
     
-    if not isinstance(post["title"], str) or not isinstance(post["content"], str):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title and content must be strings")
-    
-    new_id = max(post["id"] for post in BLOG_POST) + 1
-    new_post = {"id": new_id, **post}
-    BLOG_POST.append(new_post)
-    return {"message": "Post created successfully", "post": new_post}
+    new_post = models.models.Post(title=post.title, content=post.content, user_id=post.user_id)
+
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
+
+    return new_post
 
 
 @app.put("/api/posts/{id}", response_model=BlogPost, tags=["Endpoins ~ Posts"], status_code=status.HTTP_200_OK)
-def update_item(id: int, item: dict = Body(...)):
+def update_post(id: int, item: dict = Body(...)):
     for post in BLOG_POST:
         if post["id"] == id:
             if "title" in item:
@@ -144,7 +150,7 @@ def update_item(id: int, item: dict = Body(...)):
 
 
 @app.delete("/api/posts/{id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Endpoins ~ Posts"])
-def delete_item(id: int):
+def delete_post(id: int):
     for index, post in enumerate(BLOG_POST):
         if post["id"] == id:
             BLOG_POST.pop(index)
@@ -176,7 +182,7 @@ def get_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
     return user
 
 
-@app.get("/app/api/{user_id}/posts", response_model=list[PostResponse], tags=["Endpoins ~ Users"])
+@app.get("/api/users/{user_id}/posts", response_model=list[PostResponse], tags=["Endpoins ~ Users"])
 def get_user_posts(user_id: int, db: Annotated[Session, Depends(get_db)]):
     result = db.execute(select(models.models.User).where(models.models.User.id == user_id))
     user = result.scalars().first()
@@ -184,7 +190,7 @@ def get_user_posts(user_id: int, db: Annotated[Session, Depends(get_db)]):
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not Found.")
     
-    result = db.execute(select(models.models.Post).where(models.models.Post.id == user_id))
+    result = db.execute(select(models.models.Post).where(models.models.Post.user_id == user_id))
     posts = result.scalars().all()
 
     return posts
@@ -212,19 +218,3 @@ def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)]):
     db.refresh(new_user)
 
     return new_user
-
-@app.post("/api/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED, tags=["Endpoins ~ Users"])
-def create_post(post: PostCreate, db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.models.User).where(models.models.User.id == post.user_id))
-    user = result.scalars().first()
-
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not Found.")
-    
-    new_post = models.models.Post(title=post.title, content=post.content, user_id=post.user_id)
-
-    db.add(new_post)
-    db.commit()
-    db.refresh(new_post)
-
-    return new_post
