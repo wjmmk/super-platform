@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException, status, Query, Body, Request, Depend
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from schemas import BlogPost, AnalysisRequest, PostResponse, PostCreate, UserResponse, UserCreate
+from schemas import BlogPost, AnalysisRequest, PostResponse, PostCreate, UserResponse, UserCreate, PostUpdate
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -133,8 +133,8 @@ def create_post(post: PostCreate, db: Annotated[Session, Depends(get_db)]):
     return new_post
 
 
-@app.put("/api/posts/{id}", response_model=BlogPost, tags=["Endpoins ~ Posts"], status_code=status.HTTP_200_OK)
-def update_post(id: int, item: dict = Body(...)):
+""" @app.put("/api/posts/{id}", response_model=BlogPost, tags=["Endpoins ~ Posts"], status_code=status.HTTP_200_OK)
+def update_post_full(id: int, item: dict = Body(...)):
     for post in BLOG_POST:
         if post["id"] == id:
             if "title" in item:
@@ -146,7 +146,28 @@ def update_post(id: int, item: dict = Body(...)):
                     post["content"] = item["content"]
                 post["title"] = item["title"]
             return post
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found") """
+
+@app.put("/api/posts/{id}", response_model=BlogPost, status_code=status.HTTP_200_OK, tags=["Endpoins ~ Posts"])
+def update_post_full(id: int, post_data: PostCreate, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.models.Post).where(models.models.Post.id == id))
+    post = result.scalars().first()
+
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+    if post_data.user_id != post.user_id:
+        result = db.execute(select(models.models.User).where(models.models.User.id == post_data.user_id))
+        user = result.scalars().first()
+        if not user:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not Found.")    
+                    
+    post.title = post_data.title
+    post.content = post_data.content
+    post.user_id = post_data.user_id
+
+    db.commit()
+    db.refresh(post)
+    return post
 
 
 @app.delete("/api/posts/{id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Endpoins ~ Posts"])
