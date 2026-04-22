@@ -261,7 +261,7 @@ def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)]):
     return new_user
 
 
-@app.patch("/api/users/{user_id}", response_model=UserResponse)
+@app.patch("/api/users/{user_id}", response_model=UserResponse, tags=["Endpoins ~ Users"])
 def update_user(user_id: int, user_update: UserUpdate, db: Annotated[Session, Depends(get_db)]):
     result = db.execute(select(models.models.User).where(models.models.User.id == user_id))
     user =  result.scalars().first()
@@ -293,3 +293,15 @@ def update_user(user_id: int, user_update: UserUpdate, db: Annotated[Session, De
     db.commit()
     db.refresh(user)
     return user
+
+
+@app.delete("/api/users/{id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Endpoins ~ Users"])
+def delete_user(id: int, db: Annotated[Session,Depends(get_db)]):
+    result = db.execute(select(models.models.User).where(models.models.User.id == id))
+    user = result.scalars().first()
+
+    if not user: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    db.delete(user)
+    db.commit()
