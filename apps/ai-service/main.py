@@ -170,6 +170,23 @@ def update_post_full(id: int, post_data: PostCreate, db: Annotated[Session, Depe
     return post
 
 
+@app.patch("/api/posts/{id}", response_model=BlogPost, status_code=status.HTTP_200_OK, tags=["Endpoins ~ Posts"])
+def update_post_partial(id: int, post_data: PostUpdate, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.models.Post).where(models.models.Post.id == id))
+    post = result.scalars().first()
+
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+    
+    update_data = post_data.model_dump(exclude_unset=True) # Se validan los campos a ser Actualizados, devolviendo un Diccionario con los vlores a cambiar.
+    for field, value in update_data.items():
+        setattr(post, field, value)
+    
+    db.commit()
+    db.refresh(post)
+    return post
+
+
 @app.delete("/api/posts/{id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Endpoins ~ Posts"])
 def delete_post(id: int):
     for index, post in enumerate(BLOG_POST):
