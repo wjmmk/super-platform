@@ -188,12 +188,15 @@ def update_post_partial(id: int, post_data: PostUpdate, db: Annotated[Session, D
 
 
 @app.delete("/api/posts/{id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Endpoins ~ Posts"])
-def delete_post(id: int):
-    for index, post in enumerate(BLOG_POST):
-        if post["id"] == id:
-            BLOG_POST.pop(index)
-            return {"message": "Post deleted successfully"}
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+def delete_post(id: int, db: Annotated[Session,Depends(get_db)]):
+    result = db.execute(select(models.models.Post).where(models.models.Post.id == id))
+    post = result.scalars().first()
+
+    if not post: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+    
+    db.delete(post)
+    db.commit()
 
 
 # Simulación de análisis de facturas con IA con NestJS y Angular
