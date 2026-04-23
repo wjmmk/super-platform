@@ -31,7 +31,7 @@ async def get_user_posts(user_id: int, db: Annotated[AsyncSession, Depends(get_d
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not Found.")
     
-    result = await db.execute(select(models.models.Post).where(models.models.Post.user_id == user_id))
+    result = await db.execute(select(models.models.Post).options(selectinload(models.models.Post.author)).where(models.models.Post.user_id == user_id))
     posts = result.scalars().all()
 
     return posts
@@ -55,8 +55,8 @@ async def create_user(user: UserCreate, db: Annotated[AsyncSession, Depends(get_
     new_user = models.models.User(username=user.username, email=user.email)
 
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    await db.commit()
+    await db.refresh(new_user)
 
     return new_user
 
@@ -70,28 +70,26 @@ async def update_user(user_id: int, user_update: UserUpdate, db: Annotated[Async
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
     
     if user_update.username is not None and user_update.username != user.username:
-        result = db.execute(select(models.models.User).where(models.models.User.username == user_update.username))
+        result = await db.execute(select(models.models.User).where(models.models.User.username == user_update.username))
         existing_user = result.scalars().first()
         if existing_user:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists.")
         
     if user_update.email is not None and user_update != user.email:
-        result = db.execute(select(models.models.User).where(models.models.User.email == user_update.email))
+        result = await db.execute(select(models.models.User).where(models.models.User.email == user_update.email))
         existing_email = result.scalars().first()
         if existing_email:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered.")
         
     if user_update.username is not None:
         user.username = user_update.username
-
     if user_update.email is not None:
         user.email = user_update.email
-
     if user_update.image_file is not None:
         user.image_file = user_update.image_file
 
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     return user
 
 
@@ -103,5 +101,5 @@ async def delete_user(id: int, db: Annotated[AsyncSession, Depends(get_db)]):
     if not user: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
-    db.delete(user)
-    db.commit()
+    await db.delete(user)
+    await db.commit()
