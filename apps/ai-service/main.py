@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import FastAPI, HTTPException, status, Query, Body, Request, Depends
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -12,6 +13,7 @@ from schemas import AnalysisRequest, BlogPost
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import models.models
 from database import Base, engine, get_db
@@ -146,3 +148,42 @@ async def analyze(data: AnalysisRequest):
         "decision": "routerrove" if score < 5 else "reject",
         "invoice_processed": data.invoice
     }
+
+
+@app.exception_handler(StarletteHTTPException)
+async def general_http_exception_handler(request: Request, exception: StarletteHTTPException):
+    if request.url.path.startswith("/api"):
+        return await http_exception_handler(request, exception)
+    
+    message = (
+        exception.detail
+        if exception.detail
+        else "An error occurred. Please check your request and try again."
+    )
+
+    return templates.TemplateResponse(
+        request,
+        "error.html",
+        {
+            "status_code": exception.status_code,
+            "title": exception.status_code,
+            "message": message,
+        },
+        status_code=exception.status_code,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exception: RequestValidationError):
+    if request.url.path.startswith("/api"):
+        return await request_validation_exception_handler(request, exception)
+    return templates.TemplateResponse(
+        request,
+        "error.html",
+        {
+            "status_code": status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "title": status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "message": "Invalid request. Please check your input and try again.",
+        },
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+    )
