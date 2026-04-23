@@ -12,13 +12,13 @@ from schemas import PostCreate, PostResponse, PostUpdate
 router = APIRouter()
 
 # Post Methods for FastAPI que responderan a NestJS que al final le Mandará las respuestas al Frontend en Angular.
-@router.get("", response_model=list[PostResponse], tags=["Endpoins ~ Posts"])
+@router.get("", response_model=list[PostResponse])
 async def get_posts(db: Annotated[AsyncSession, Depends(get_db)]):
     result = await db.execute(select(models.models.Post).options(selectinload(models.models.Post.author)))
     posts = result.scalars().all()
     return posts
 
-@router.get("/{id}", response_model=PostResponse, tags=["Endpoins ~ Posts"])
+@router.get("/{id}", response_model=PostResponse)
 async def get_post(id: int, db: Annotated[AsyncSession, Depends(get_db)]):
     result = await db.execute(select(models.models.Post).options(selectinload(models.models.Post.author)).where(models.models.Post.id == id))
     post = result.scalars().first()
@@ -26,7 +26,7 @@ async def get_post(id: int, db: Annotated[AsyncSession, Depends(get_db)]):
         return post
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
 
-@router.post("", response_model=PostResponse, status_code=status.HTTP_201_CREATED, tags=["Endpoins ~ Posts"])
+@router.post("", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 async def create_post(post: PostCreate, db: Annotated[AsyncSession, Depends(get_db)]):
     result = await db.execute(select(models.models.User).options(selectinload(models.models.Post.author)).where(models.models.User.id == post.user_id))
     user = result.scalars().first()
@@ -43,7 +43,7 @@ async def create_post(post: PostCreate, db: Annotated[AsyncSession, Depends(get_
     return new_post
 
 
-@router.put("/{id}", response_model=PostResponse, status_code=status.HTTP_200_OK, tags=["Endpoins ~ Posts"])
+@router.put("/{id}", response_model=PostResponse, status_code=status.HTTP_200_OK)
 async def update_post_full(id: int, post_data: PostCreate, db: Annotated[AsyncSession, Depends(get_db)]):
     result = await db.execute(select(models.models.Post).options(selectinload(models.models.Post.author)).where(models.models.Post.id == id))
     post = result.scalars().first()
@@ -65,7 +65,7 @@ async def update_post_full(id: int, post_data: PostCreate, db: Annotated[AsyncSe
     return post
 
 
-@router.patch("/{id}", response_model=PostResponse, status_code=status.HTTP_200_OK, tags=["Endpoins ~ Posts"])
+@router.patch("/{id}", response_model=PostResponse, status_code=status.HTTP_200_OK)
 async def update_post_partial(id: int, post_data: PostUpdate, db: Annotated[AsyncSession, Depends(get_db)]):
     result = await db.execute(select(models.models.Post).where(models.models.Post.id == id))
     post = result.scalars().first()
@@ -82,7 +82,7 @@ async def update_post_partial(id: int, post_data: PostUpdate, db: Annotated[Asyn
     return post
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Endpoins ~ Posts"])
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_post(id: int, db: Annotated[AsyncSession,Depends(get_db)]):
     result = await db.execute(select(models.models.Post).where(models.models.Post.id == id))
     post = result.scalars().first()
