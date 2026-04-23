@@ -1,21 +1,37 @@
+from contextlib import asynccontextmanager
 from typing import Annotated
+
 from fastapi import FastAPI, HTTPException, status, Query, Body, Request, Depends
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from schemas import BlogPost, AnalysisRequest, PostResponse, PostCreate, PostUpdate, UserResponse, UserCreate, UserUpdate
+from schemas import AnalysisRequest, BlogPost
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
-from starlette.exceptions import HTTPException as StarletteHTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 import models.models
 from database import Base, engine, get_db
+from routers import posts, users
 
-# Creacion de la DB and Tables.
-Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="AI Service", version="1.0")
+""" # Creacion de la DB and Tables.
+Base.metadata.create_all(bind=engine) Esto es para la creacion de tablas Sincronas """
+
+# Creacion de DB & tablas Asincronamente para la Carga Diferida entre Consultas a da DBs.
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Startup
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    # Shutdown
+    await engine.dispose()
+
+app = FastAPI(lifespan=lifespan, title="AI Service", version="1.0")
 
 # Routes for Media Files.
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -23,6 +39,11 @@ app.mount("/media", StaticFiles(directory="media"), name="media")
 
 # Permite usar plantillas HTML desde FastAPI.
 templates = Jinja2Templates(directory="templates")
+
+# Enrutadores de APIs implementados.
+app.include_router(users.router, prefix="/api/users", tags=["Endpoint ~ Users"])
+app.include_router(posts.router, prefix="/api/posts", tags=["Endpoints ~ Posts"])
+
 
 BLOG_POST: BlogPost[dict] = [
     {
@@ -56,8 +77,8 @@ def get_posts():
   y recibirá las respuestas desde el Backend realizado en NestJS. 
 """
 @app.get("/posts/template", tags=["Endpoints ~ HTML"])
-def get_home(request: Request, db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.models.Post))
+async def get_home(request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
+    result = await db.execute(select(models.models.Post).options(selectinload(models.models.Post.author)))
     posts = result.scalars().all()
     return templates.TemplateResponse(request, "home.html", { "posts": posts, "title": "Home" })
 
@@ -89,8 +110,8 @@ def health():
 
 
 @app.get("/posts/{post_id}", tags=["Endpoints ~ HTML"])
-def get_post(request: Request, post_id: int, db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.models.Post).where(models.models.Post.id == post_id))
+async def get_post(request: Request, post_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
+    result = await db.execute(select(models.models.Post).options(selectinload(models.models.Post.author)).where(models.models.Post.id == post_id))
     post = result.scalars().first()
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
@@ -98,42 +119,8 @@ def get_post(request: Request, post_id: int, db: Annotated[Session, Depends(get_
     title = post.title[:50]
     return templates.TemplateResponse(request, "post.html", { "post": post, "title": title })
 
-''' Hasta aquí llega el codigo HTML de pruebas.'''
 
-
-# Post Methods for FastAPI que responderan a NestJS que al final le Mandará las respuestas al Frontend en Angular.
-@app.get("/api/posts", response_model=list[PostResponse], tags=["Endpoins ~ Posts"])
-def get_posts(db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.models.Post))
-    posts = result.scalars().all()
-    return posts
-
-@app.get("/api/posts/{id}", response_model=PostResponse, tags=["Endpoins ~ Posts"])
-def get_post(id: int, db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.models.Post).where(models.models.Post.id == id))
-    post = result.scalars().first()
-    if post:
-        return post
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
-
-@app.post("/api/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED, tags=["Endpoins ~ Posts"])
-def create_post(post: PostCreate, db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.models.User).where(models.models.User.id == post.user_id))
-    user = result.scalars().first()
-
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not Found.")
-    
-    new_post = models.models.Post(title=post.title, content=post.content, user_id=post.user_id)
-
-    db.add(new_post)
-    db.commit()
-    db.refresh(new_post)
-
-    return new_post
-
-
-""" @app.put("/api/posts/{id}", response_model=BlogPost, tags=["Endpoins ~ Posts"], status_code=status.HTTP_200_OK)
+@app.put("/posts/{id}", response_model=BlogPost, tags=["Endpoints ~ HTML"], status_code=status.HTTP_200_OK)
 def update_post_full(id: int, item: dict = Body(...)):
     for post in BLOG_POST:
         if post["id"] == id:
@@ -146,162 +133,16 @@ def update_post_full(id: int, item: dict = Body(...)):
                     post["content"] = item["content"]
                 post["title"] = item["title"]
             return post
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found") """
-
-@app.put("/api/posts/{id}", response_model=PostResponse, status_code=status.HTTP_200_OK, tags=["Endpoins ~ Posts"])
-def update_post_full(id: int, post_data: PostCreate, db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.models.Post).where(models.models.Post.id == id))
-    post = result.scalars().first()
-
-    if not post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
-    if post_data.user_id != post.user_id:
-        result = db.execute(select(models.models.User).where(models.models.User.id == post_data.user_id))
-        user = result.scalars().first()
-        if not user:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not Found.")    
-                    
-    post.title = post_data.title
-    post.content = post_data.content
-    post.user_id = post_data.user_id
-
-    db.commit()
-    db.refresh(post)
-    return post
-
-
-@app.patch("/api/posts/{id}", response_model=PostResponse, status_code=status.HTTP_200_OK, tags=["Endpoins ~ Posts"])
-def update_post_partial(id: int, post_data: PostUpdate, db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.models.Post).where(models.models.Post.id == id))
-    post = result.scalars().first()
-
-    if not post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
-    
-    update_data = post_data.model_dump(exclude_unset=True) # Se validan los campos a ser Actualizados, devolviendo un Diccionario con los vlores a cambiar.
-    for field, value in update_data.items():
-        setattr(post, field, value)
-    
-    db.commit()
-    db.refresh(post)
-    return post
-
-
-@app.delete("/api/posts/{id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Endpoins ~ Posts"])
-def delete_post(id: int, db: Annotated[Session,Depends(get_db)]):
-    result = db.execute(select(models.models.Post).where(models.models.Post.id == id))
-    post = result.scalars().first()
-
-    if not post: 
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
-    
-    db.delete(post)
-    db.commit()
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
 
 
 # Simulación de análisis de facturas con IA con NestJS y Angular
 @app.post("/api/analyze", include_in_schema=False)
-def analyze(data: AnalysisRequest):
+async def analyze(data: AnalysisRequest):
     # Simulación IA
     score = len(str(data.invoice)) * 0.1
     return {
         "risk_score": round(score, 2), # Redondeamos para que se vea limpio en Angular
-        "decision": "approve" if score < 5 else "reject",
+        "decision": "routerrove" if score < 5 else "reject",
         "invoice_processed": data.invoice
     }
-
-
-# Enpoints for the Users:
-@app.get("/api/users/{user_id}", response_model=UserResponse, tags=["Endpoins ~ Users"])
-def get_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.models.User).where(models.models.User.id == user_id))
-    user = result.scalars().first()
-
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not Found.")
-    
-    return user
-
-
-@app.get("/api/users/{user_id}/posts", response_model=list[PostResponse], tags=["Endpoins ~ Users"])
-def get_user_posts(user_id: int, db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.models.User).where(models.models.User.id == user_id))
-    user = result.scalars().first()
-
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not Found.")
-    
-    result = db.execute(select(models.models.Post).where(models.models.Post.user_id == user_id))
-    posts = result.scalars().all()
-
-    return posts
-
-
-@app.post("/api/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED, tags=["Endpoins ~ Users"])
-def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.models.User).where(models.models.User.username == user.username))
-    existing_user = result.scalars().first()
-
-    if existing_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exist")
-    
-
-    result = db.execute(select(models.models.User).where(models.models.User.email == user.email))
-    existing_email = result.scalars().first()
-
-    if existing_email:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exist")
-    
-    new_user = models.models.User(username=user.username, email=user.email)
-
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-
-    return new_user
-
-
-@app.patch("/api/users/{user_id}", response_model=UserResponse, tags=["Endpoins ~ Users"])
-def update_user(user_id: int, user_update: UserUpdate, db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.models.User).where(models.models.User.id == user_id))
-    user =  result.scalars().first()
-
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
-    
-    if user_update.username is not None and user_update.username != user.username:
-        result = db.execute(select(models.models.User).where(models.models.User.username == user_update.username))
-        existing_user = result.scalars().first()
-        if existing_user:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists.")
-        
-    if user_update.email is not None and user_update != user.email:
-        result = db.execute(select(models.models.User).where(models.models.User.email == user_update.email))
-        existing_email = result.scalars().first()
-        if existing_email:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered.")
-        
-    if user_update.username is not None:
-        user.username = user_update.username
-
-    if user_update.email is not None:
-        user.email = user_update.email
-
-    if user_update.image_file is not None:
-        user.image_file = user_update.image_file
-
-    db.commit()
-    db.refresh(user)
-    return user
-
-
-@app.delete("/api/users/{id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Endpoins ~ Users"])
-def delete_user(id: int, db: Annotated[Session,Depends(get_db)]):
-    result = db.execute(select(models.models.User).where(models.models.User.id == id))
-    user = result.scalars().first()
-
-    if not user: 
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    
-    db.delete(user)
-    db.commit()
