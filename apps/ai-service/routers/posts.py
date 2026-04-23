@@ -37,8 +37,8 @@ async def create_post(post: PostCreate, db: Annotated[AsyncSession, Depends(get_
     new_post = models.models.Post(title=post.title, content=post.content, user_id=post.user_id)
 
     db.add(new_post)
-    db.commit()
-    db.refresh(new_post)
+    await db.commit()
+    await db.refresh(new_post, attribute_names=["author"]) # Te permite realizar relaciones entre tablas sin la necesidad de hacer una Consulta.
 
     return new_post
 
@@ -60,8 +60,8 @@ async def update_post_full(id: int, post_data: PostCreate, db: Annotated[AsyncSe
     post.content = post_data.content
     post.user_id = post_data.user_id
 
-    db.commit()
-    db.refresh(post)
+    await db.commit()
+    await db.refresh(post, attribute_names=["author"]) # Te permite realizar relaciones entre tablas sin la necesidad de hacer una Consulta.
     return post
 
 
@@ -77,8 +77,8 @@ async def update_post_partial(id: int, post_data: PostUpdate, db: Annotated[Asyn
     for field, value in update_data.items():
         setattr(post, field, value)
     
-    db.commit()
-    db.refresh(post)
+    await db.commit()
+    await db.refresh(post, attribute_names=["author"]) # Te permite realizar relaciones entre tablas sin la necesidad de hacer una Consulta.
     return post
 
 
@@ -90,6 +90,6 @@ async def delete_post(id: int, db: Annotated[AsyncSession,Depends(get_db)]):
     if not post: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
     
-    db.delete(post)
-    db.commit()
+    await db.delete(post)
+    await db.commit()
 
