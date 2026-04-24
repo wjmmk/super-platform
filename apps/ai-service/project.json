@@ -7,7 +7,7 @@
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": ".env\\Scripts\\python -m uvicorn main:app --reload --port 8000",
+        "command": ".venv\\Scripts\\python -m uvicorn main:app --reload --port 8000",
         "cwd": "apps/ai-service"
       }
     },
