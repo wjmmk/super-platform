@@ -5,6 +5,7 @@ dist
 tmp
 out-tsc
 .env
+.venv
 /postgres
 # dependencies
 node_modules
