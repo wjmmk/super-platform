@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import models.models
-from database import Base, engine, get_db
+from database import engine, get_db
 from routers import posts, users
 
 
@@ -26,9 +26,6 @@ Base.metadata.create_all(bind=engine) Esto es para la creacion de tablas Sincron
 # Creacion de DB & tablas Asincronamente para la Carga Diferida entre Consultas a da DBs.
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # Startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
     yield
     # Shutdown
     await engine.dispose()
