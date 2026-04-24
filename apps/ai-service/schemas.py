@@ -38,7 +38,7 @@ class PostResponse(PostBase):
     id: int
     user_id: int
     date_posted: datetime
-    author: UserResponse
+    author: "UserResponse" 
 
 
 
@@ -61,3 +61,6 @@ class UserResponse(UserBase):
     id: int
     image_file: str | None
     image_path: str
+
+
+PostResponse.model_rebuild()

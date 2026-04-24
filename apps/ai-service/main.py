@@ -10,12 +10,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from schemas import AnalysisRequest, BlogPost
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import models.models
+from config import settings
 from database import engine, get_db
 from routers import posts, users
 
@@ -44,7 +45,7 @@ app.include_router(users.router, prefix="/api/users", tags=["Endpoint ~ Users"])
 app.include_router(posts.router, prefix="/api/posts", tags=["Endpoints ~ Posts"])
 
 
-BLOG_POST: BlogPost[dict] = [
+BLOG_POST: list[dict] = [
     {
         "id": 123,
         "title": "How to Use AI in Your Business",
@@ -84,7 +85,7 @@ async def get_home(request: Request, db: Annotated[AsyncSession, Depends(get_db)
 
 @app.get("/posts/html", response_class=HTMLResponse, include_in_schema=False)
 def get_posts_html():
-    return f'<h1>{BLOG_POST[0]['title']}</h1>'
+    return f"<h1>{BLOG_POST[0]['title']}</h1>"
 
 @app.get("/params", tags=["Endpoints ~ HTML"])
 def get_posts_Query_params(query: str | None = Query(default=None, description="Query string to search posts"), limit: int = 5):
@@ -106,6 +107,51 @@ def get_post_param(id: int | None = None, include_content: bool | None = Query(d
 @app.get("/health", include_in_schema=False)
 def health():
     return {"status": "ok"}
+
+
+@app.get("/users/{user_id}/posts", include_in_schema=False, name="user_posts")
+async def user_posts_page(
+    request: Request,
+    user_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(select(models.User).where(models.User.id == user_id))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(models.Post)
+        .where(models.Post.user_id == user_id),
+    )
+    total = count_result.scalar() or 0
+
+    result = await db.execute(
+        select(models.Post)
+        .options(selectinload(models.Post.author))
+        .where(models.Post.user_id == user_id)
+        .order_by(models.Post.date_posted.desc())
+        .limit(settings.posts_per_page),
+    )
+    posts = result.scalars().all()
+
+    has_more = len(posts) < total
+
+    return templates.TemplateResponse(
+        request,
+        "user_posts.html",
+        {
+            "posts": posts,
+            "user": user,
+            "title": f"{user.username}'s Posts",
+            "limit": settings.posts_per_page,
+            "has_more": has_more,
+        },
+    )
 
 
 @app.get("/posts/{post_id}", tags=["Endpoints ~ HTML"])
